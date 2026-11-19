@@ -22,7 +22,6 @@
         <provider
             android:name=".data.TimerConfigProvider"
             android:authorities="com.op.aod.timer.config"
-            android:directBootAware="true"
             android:exported="true"
             android:grantUriPermissions="true" />
 

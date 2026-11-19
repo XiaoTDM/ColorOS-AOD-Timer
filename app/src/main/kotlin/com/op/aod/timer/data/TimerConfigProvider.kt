@@ -2,6 +2,7 @@ package com.op.aod.timer.data
 
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.content.Context
 import android.content.UriMatcher
 import android.database.Cursor
 import android.database.MatrixCursor
@@ -9,6 +10,15 @@ import android.net.Uri
 
 /**
  * 跨进程配置通道：UI 进程写入，SystemUI 进程读取。
+ *
+ * 存储说明
+ * ----
+ * 本模块是 LSPosed 模块，框架会把本进程的 `Context.getSharedPreferences()`
+ * 重定向到 `/data/misc/<framework-uuid>/prefs/<package>/`（SELinux 标签
+ * `xposed_data`），以便被 Hook 的进程读取。
+ *
+ * 因此 `/data/data/<package>/shared_prefs/` 为空是**正常现象**，
+ * 不代表写入失败；实际文件在框架管理的 prefs 目录下。
  */
 class TimerConfigProvider : ContentProvider() {
 
@@ -27,9 +37,7 @@ class TimerConfigProvider : ContentProvider() {
 
     override fun onCreate(): Boolean = true
 
-    private fun prefs() = context
-        ?.createDeviceProtectedStorageContext()
-        ?.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    private fun prefs() = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     override fun query(
         uri: Uri,

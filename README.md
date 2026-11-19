@@ -44,7 +44,7 @@ Release 构建需要在根目录提供 `keystore.properties`（`storeFile` / `st
 
 ## 使用
 
-1. 安装 APK，在 LSPosed 中启用「AOD 常亮计时」，作用域勾选系统界面
+1. 安装 APK，在 LSPosed 中启用「ColorOS AOD 计时修改」，作用域勾选系统界面
 2. 重启系统界面
 3. 打开应用，把滑条拨到需要的时长
 4. 验证日志：
@@ -65,8 +65,10 @@ AOD_KEEP: getKeepAodOn -> 1 (minutes=60)
 - 面板能力码未上报"全天"位时，ROM 本身不提供防烧屏保证；长期常亮请注意烧屏风险
 - 与其它改写 `getKeepAodOn()` 的模块同时启用会互相覆盖，请只保留一个
 - 到达设定时长后由 ROM 的下一次节能判定执行隐藏，可能有数秒到数十秒延迟
+- 配置由 LSPosed 框架管理，可能会出现重启时配置失效的问题
 
 ## 声明
+
 - 项目启发自 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance)
 - AI 使用
 
