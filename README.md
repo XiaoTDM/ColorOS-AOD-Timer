@@ -66,6 +66,10 @@ AOD_KEEP: getKeepAodOn -> 1 (minutes=60)
 - 与其它改写 `getKeepAodOn()` 的模块同时启用会互相覆盖，请只保留一个
 - 到达设定时长后由 ROM 的下一次节能判定执行隐藏，可能有数秒到数十秒延迟
 
+## 声明
+- 项目启发自 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance)
+- AI 使用
+
 ## 许可证
 
 MIT。配置通道与 Hook 结构参考自 Qjj7679 的 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance)，
