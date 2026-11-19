@@ -1,0 +1,68 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+}
+
+android {
+    namespace = 'com.op.aod.timer'
+    compileSdk = 37
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            shrinkResources = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    defaultConfig {
+        applicationId = 'com.op.aod.timer'
+        minSdk = 33
+        targetSdk = 36
+        versionCode = 1
+        versionName = '1.0'
+    }
+
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
+
+    lint {
+        checkReleaseBuilds false
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation platform(libs.androidx.compose.bom)
+    implementation libs.androidx.activity.compose
+    implementation libs.androidx.compose.ui
+    implementation libs.androidx.compose.material3
+    implementation libs.androidx.compose.foundation
+    implementation libs.miuix.ui
+    implementation libs.miuix.preference
+    implementation libs.miuix.icons
+    debugImplementation libs.androidx.compose.ui.tooling
+    debugImplementation libs.androidx.compose.ui.test.manifest
+
+    implementation(libs.yukihookapi.api) {
+        exclude group: "androidx.appcompat", module: "appcompat"
+        exclude group: "com.google.android.material", module: "material"
+        exclude group: "androidx.preference", module: "preference"
+        exclude group: "androidx.fragment", module: "fragment"
+        exclude group: "androidx.activity", module: "activity"
+    }
+    implementation libs.kavaref.core
+    implementation libs.kavaref.extension
+
+    compileOnly libs.xposed.api
+    ksp libs.yukihookapi.ksp.xposed
+
+    implementation libs.androidx.core.ktx
+}

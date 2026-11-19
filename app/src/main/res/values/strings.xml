@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AOD 常亮计时</string>
+    <string name="xposed_description">Keep ColorOS AOD on for a configurable duration in energy-saving mode</string>
+</resources>
