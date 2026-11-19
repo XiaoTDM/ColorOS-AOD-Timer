@@ -6,6 +6,10 @@ import android.net.Uri
 
 /**
  * UI 侧配置读写。
+ *
+ * [read] 在 Provider 尚未就绪时返回 null 而不是默认值——这一点很关键：
+ * 如果这里返回默认的 `keepAodMinutes = 0`，UI 会用 0 初始化，
+ * 用户之后任何一次操作都会把 0 写回 Provider，看起来就像"重启后配置变成 0"。
  */
 object TimerConfigStore {
 
@@ -14,27 +18,33 @@ object TimerConfigStore {
     @Volatile
     private var cached: TimerConfig? = null
 
-    fun read(resolver: ContentResolver): TimerConfig {
+    /** 读取配置；连续失败时返回 null，由调用方重试。不要在主线程调用。 */
+    fun read(resolver: ContentResolver): TimerConfig? {
         cached?.let { return it }
 
-        val fresh = runCatching {
-            resolver.query(uri, null, null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    TimerConfig(
-                        keepAodMinutes = c.getInt(0),
-                        forceDeburnIn = c.getInt(1) == 1,
-                    )
-                } else {
-                    null
+        repeat(3) { attempt ->
+            val fresh = runCatching {
+                resolver.query(uri, null, null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        TimerConfig(
+                            keepAodMinutes = c.getInt(0),
+                            forceDeburnIn = c.getInt(1) == 1,
+                        )
+                    } else {
+                        null
+                    }
                 }
-            }
-        }.getOrNull()
+            }.getOrNull()
 
-        if (fresh != null) {
-            cached = fresh
-            return fresh
+            if (fresh != null) {
+                cached = fresh
+                return fresh
+            }
+
+            if (attempt < 2) runCatching { Thread.sleep(120L) }
         }
-        return TimerConfig()
+
+        return null
     }
 
     fun write(resolver: ContentResolver, config: TimerConfig) {

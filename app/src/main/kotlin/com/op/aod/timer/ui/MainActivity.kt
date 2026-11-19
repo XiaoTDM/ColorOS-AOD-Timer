@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,10 +18,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.op.aod.timer.data.TimerConfig
 import com.op.aod.timer.data.TimerConfigStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -29,24 +39,14 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val initial = TimerConfigStore.read(contentResolver)
-
         setContent {
             MiuixTheme {
-                TimerScreen(
-                    initial = initial,
-                    onSave = { config -> TimerConfigStore.write(contentResolver, config) }
-                )
+                TimerApp()
             }
         }
     }
@@ -54,6 +54,52 @@ class MainActivity : ComponentActivity() {
 
 /** 滑条上限（分钟）。达到上限表示"常亮"，对应配置值 -1。 */
 private const val MAX_MINUTES = 240f
+
+@Composable
+private fun TimerApp() {
+    val resolver = LocalContext.current.contentResolver
+    var config by remember { mutableStateOf<TimerConfig?>(null) }
+
+    // 配置读不到就一直重试，绝不拿默认值去初始化 UI
+    LaunchedEffect(Unit) {
+        while (config == null) {
+            config = withContext(Dispatchers.IO) { TimerConfigStore.read(resolver) }
+            if (config == null) delay(500)
+        }
+    }
+
+    val loaded = config
+    if (loaded == null) {
+        LoadingScreen()
+    } else {
+        TimerScreen(
+            initial = loaded,
+            onSave = { updated -> TimerConfigStore.write(resolver, updated) }
+        )
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
+    Scaffold(
+        topBar = {
+            SmallTopAppBar(
+                title = "AOD 常亮计时",
+                color = MiuixTheme.colorScheme.secondaryContainer,
+            )
+        },
+        containerColor = MiuixTheme.colorScheme.secondaryContainer,
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("正在读取配置…")
+        }
+    }
+}
 
 @OptIn(FlowPreview::class)
 @Composable
@@ -89,7 +135,7 @@ private fun TimerScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = "ColorOS AOD 计时修改",
+                title = "AOD 常亮计时",
                 color = MiuixTheme.colorScheme.secondaryContainer,
             )
         },
@@ -128,13 +174,13 @@ private fun TimerScreen(
             ) {
                 SwitchPreference(
                     title = "强制启用防烧屏位移",
-                    summary = "让系统在省电常亮时也执行像素偏移；可能出现轻微位置跳变",
+                    summary = "让系统在省电常亮时也执行全景位移；可能出现轻微位置跳变",
                     checked = forceDeburn,
                     onCheckedChange = { forceDeburn = it },
                 )
             }
 
-            Text("0 = 跟随系统；240 = 常亮。只影响节能模式下的显示时长，不修改系统设置。")
+            Text("0 = 跟随系统；240 = 常亮。只影响节能模式下的显示时长，不改系统设置。")
         }
     }
 }

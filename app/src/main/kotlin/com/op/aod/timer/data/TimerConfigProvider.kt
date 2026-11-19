@@ -27,7 +27,9 @@ class TimerConfigProvider : ContentProvider() {
 
     override fun onCreate(): Boolean = true
 
-    private fun prefs() = context?.getSharedPreferences(PREFS_NAME, 0)
+    private fun prefs() = context
+        ?.createDeviceProtectedStorageContext()
+        ?.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
 
     override fun query(
         uri: Uri,
@@ -80,7 +82,8 @@ class TimerConfigProvider : ContentProvider() {
                 )
             }
         }
-        editor.apply()
+        // 同步落盘：配置写入频率很低，用 commit() 保证异常重启时不会丢
+        editor.commit()
         return 1
     }
 
