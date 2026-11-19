@@ -7,6 +7,7 @@ ColorOS 息屏显示（AOD）常亮计时模块（Xposed / LSPosed）。
 ## 功能
 
 - 一条滑条：`0` = 跟随系统，`1–239` = 熄屏后保持 N 分钟，`240` = 常亮
+- 一个开关：强制启用防烧屏位移（系统在省电常亮时默认不做位移）
 - 纯内存改写，不写 SecureSetting、不改渲染路径、不动系统设置
 - 滑条归零或停用模块即完全恢复系统行为
 - 与 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance) 可共存（包名、Provider、入口均独立）

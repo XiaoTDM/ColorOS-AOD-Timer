@@ -19,7 +19,10 @@ class TimerConfigProvider : ContentProvider() {
             addURI(TimerConfigContract.AUTHORITY, TimerConfigContract.PATH, 1)
         }
 
-        private val COLUMNS = arrayOf(TimerConfigContract.KEY_KEEP_AOD_MINUTES)
+        private val COLUMNS = arrayOf(
+            TimerConfigContract.KEY_KEEP_AOD_MINUTES,
+            TimerConfigContract.KEY_FORCE_DEBURN_IN,
+        )
     }
 
     override fun onCreate(): Boolean = true
@@ -41,7 +44,12 @@ class TimerConfigProvider : ContentProvider() {
                     p.getInt(
                         TimerConfigContract.KEY_KEEP_AOD_MINUTES,
                         TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
-                    )
+                    ),
+                    if (p.getBoolean(
+                            TimerConfigContract.KEY_FORCE_DEBURN_IN,
+                            TimerConfigContract.DEFAULT_FORCE_DEBURN_IN
+                        )
+                    ) 1 else 0,
                 )
             )
         }
@@ -55,17 +63,24 @@ class TimerConfigProvider : ContentProvider() {
     ): Int {
         if (matcher.match(uri) != 1) return 0
         val p = prefs() ?: return 0
+        val editor = p.edit()
         values?.let {
             if (it.containsKey(TimerConfigContract.KEY_KEEP_AOD_MINUTES)) {
-                p.edit()
-                    .putInt(
-                        TimerConfigContract.KEY_KEEP_AOD_MINUTES,
-                        it.getAsInteger(TimerConfigContract.KEY_KEEP_AOD_MINUTES)
-                            ?: TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
-                    )
-                    .apply()
+                editor.putInt(
+                    TimerConfigContract.KEY_KEEP_AOD_MINUTES,
+                    it.getAsInteger(TimerConfigContract.KEY_KEEP_AOD_MINUTES)
+                        ?: TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
+                )
+            }
+            if (it.containsKey(TimerConfigContract.KEY_FORCE_DEBURN_IN)) {
+                editor.putBoolean(
+                    TimerConfigContract.KEY_FORCE_DEBURN_IN,
+                    it.getAsBoolean(TimerConfigContract.KEY_FORCE_DEBURN_IN)
+                        ?: TimerConfigContract.DEFAULT_FORCE_DEBURN_IN
+                )
             }
         }
+        editor.apply()
         return 1
     }
 

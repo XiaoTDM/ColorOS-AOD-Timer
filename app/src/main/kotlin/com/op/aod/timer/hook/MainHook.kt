@@ -2,6 +2,9 @@ package com.op.aod.timer.hook
 
 import android.content.Context
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
+import com.op.aod.timer.BuildConfig
+import com.op.aod.timer.hook.BurnInProbe.hookBurnInProbe
+import com.op.aod.timer.hook.ForceDeBurnInHook.hookForceDeBurnIn
 import com.op.aod.timer.hook.KeepAodHook.hookKeepAodDuration
 
 /**
@@ -38,6 +41,11 @@ object MainHook : YukiBaseHooker() {
     override fun onHook() {
         loadApp(name = SYSTEM_UI) {
             runCatching { hookKeepAodDuration() }
+            runCatching { hookForceDeBurnIn() }
+            // 防烧屏探针只在 DEBUG 构建注册，release 不会执行
+            if (BuildConfig.DEBUG) {
+                runCatching { hookBurnInProbe() }
+            }
         }
     }
 

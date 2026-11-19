@@ -79,7 +79,7 @@ internal object KeepAodHook {
                 .firstMethod { name = "getKeepAodOn" }
                 .hook {
                     after {
-                        val minutes = TimerConfigReader.read(MainHook.hostAppContext)
+                        val minutes = TimerConfigReader.read(MainHook.hostAppContext).keepAodMinutes
                         if (minutes == 0) return@after
 
                         val keep = shouldKeep(minutes)

@@ -4,12 +4,34 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// 签名配置从根目录的 keystore.properties 读取；文件不存在时构建依然可以跑，
+// 但 release 产物会是 unsigned，只能用于检查，不能直接安装。
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     namespace = 'com.op.aod.timer'
     compileSdk = 37
 
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.release
+            }
             minifyEnabled = false
             shrinkResources = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

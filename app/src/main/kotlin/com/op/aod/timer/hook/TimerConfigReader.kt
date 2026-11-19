@@ -2,6 +2,7 @@ package com.op.aod.timer.hook
 
 import android.content.Context
 import android.net.Uri
+import com.op.aod.timer.data.TimerConfig
 import com.op.aod.timer.data.TimerConfigContract
 
 /**
@@ -12,15 +13,15 @@ internal object TimerConfigReader {
     private val uri: Uri = Uri.parse(TimerConfigContract.URI_STRING)
 
     @Volatile
-    private var cached: Int? = null
+    private var cached: TimerConfig? = null
 
     @Volatile
     private var lastReadNs = 0L
 
     private const val CACHE_TTL_NS = 1_000_000_000L
 
-    fun read(context: Context?): Int {
-        if (context == null) return TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
+    fun read(context: Context?): TimerConfig {
+        if (context == null) return TimerConfig()
 
         val now = System.nanoTime()
         cached?.let { value ->
@@ -29,7 +30,14 @@ internal object TimerConfigReader {
 
         val fresh = runCatching {
             context.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                if (c.moveToFirst()) c.getInt(0) else null
+                if (c.moveToFirst()) {
+                    TimerConfig(
+                        keepAodMinutes = c.getInt(0),
+                        forceDeburnIn = c.getInt(1) == 1,
+                    )
+                } else {
+                    null
+                }
             }
         }.getOrNull()
 
@@ -39,6 +47,6 @@ internal object TimerConfigReader {
             return fresh
         }
 
-        return cached ?: TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
+        return cached ?: TimerConfig()
     }
 }
