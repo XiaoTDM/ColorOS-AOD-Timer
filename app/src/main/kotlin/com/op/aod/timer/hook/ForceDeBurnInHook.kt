@@ -43,9 +43,10 @@ internal object ForceDeBurnInHook {
                 .firstMethod { name = "shouldDoPanoramicAodUIDeBurnIn" }
                 .hook {
                     after {
-                        if (!TimerConfigReader.read(MainHook.hostAppContext).forceDeburnIn) {
-                            return@after
-                        }
+                        val cfg = TimerConfigReader.read(MainHook.hostAppContext)
+                        if (!cfg.forceDeburnIn) return@after
+                        // 时段外不干预，交还给系统
+                        if (!Schedule.isActive(cfg)) return@after
                         if (instance<Any>().isImmersed()) return@after
 
                         if (result<Boolean>() != true) {

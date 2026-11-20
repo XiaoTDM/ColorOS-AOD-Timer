@@ -79,8 +79,11 @@ internal object KeepAodHook {
                 .firstMethod { name = "getKeepAodOn" }
                 .hook {
                     after {
-                        val minutes = TimerConfigReader.read(MainHook.hostAppContext).keepAodMinutes
+                        val cfg = TimerConfigReader.read(MainHook.hostAppContext)
+                        val minutes = cfg.keepAodMinutes
                         if (minutes == 0) return@after
+                        // 启用时段外不干预，交还给系统
+                        if (!Schedule.isActive(cfg)) return@after
 
                         val keep = shouldKeep(minutes)
                         result = if (keep) 1 else 0

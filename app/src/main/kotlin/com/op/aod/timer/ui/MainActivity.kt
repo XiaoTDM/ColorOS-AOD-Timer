@@ -1,6 +1,8 @@
 package com.op.aod.timer.ui
 
+import android.app.TimePickerDialog
 import android.os.Bundle
+import android.text.format.DateFormat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -37,6 +40,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -57,13 +61,13 @@ private const val MAX_MINUTES = 240f
 
 @Composable
 private fun TimerApp() {
-    val resolver = LocalContext.current.contentResolver
+    val context = LocalContext.current
     var config by remember { mutableStateOf<TimerConfig?>(null) }
 
-    // 配置读不到就一直重试，绝不拿默认值去初始化 UI
+    // 读不到就一直重试，不拿默认值初始化 UI
     LaunchedEffect(Unit) {
         while (config == null) {
-            config = withContext(Dispatchers.IO) { TimerConfigStore.read(resolver) }
+            config = withContext(Dispatchers.IO) { TimerConfigStore.read(context) }
             if (config == null) delay(500)
         }
     }
@@ -74,7 +78,7 @@ private fun TimerApp() {
     } else {
         TimerScreen(
             initial = loaded,
-            onSave = { updated -> TimerConfigStore.write(resolver, updated) }
+            onSave = { updated -> TimerConfigStore.write(context, updated) }
         )
     }
 }
@@ -115,21 +119,37 @@ private fun TimerScreen(
         )
     }
     var forceDeburn by remember { mutableStateOf(initial.forceDeburnIn) }
+    var scheduleEnabled by remember { mutableStateOf(initial.scheduleEnabled) }
+    var scheduleStart by remember { mutableIntStateOf(initial.scheduleStartMinute) }
+    var scheduleEnd by remember { mutableIntStateOf(initial.scheduleEndMinute) }
+
     val currentOnSave by rememberUpdatedState(onSave)
+    val context = LocalContext.current
+
+    fun pickTime(current: Int, onPicked: (Int) -> Unit) {
+        TimePickerDialog(
+            context,
+            { _, hour, minute -> onPicked(hour * 60 + minute) },
+            current / 60,
+            current % 60,
+            DateFormat.is24HourFormat(context),
+        ).show()
+    }
 
     LaunchedEffect(Unit) {
-        snapshotFlow { Pair(value, forceDeburn) }
+        snapshotFlow {
+            TimerConfig(
+                keepAodMinutes = if (value >= MAX_MINUTES) -1 else value.toInt(),
+                forceDeburnIn = forceDeburn,
+                scheduleEnabled = scheduleEnabled,
+                scheduleStartMinute = scheduleStart,
+                scheduleEndMinute = scheduleEnd,
+            )
+        }
             .drop(1) // 跳过初始值
             .debounce(300)
             .distinctUntilChanged()
-            .collect { (minutes, force) ->
-                currentOnSave(
-                    TimerConfig(
-                        keepAodMinutes = if (minutes >= MAX_MINUTES) -1 else minutes.toInt(),
-                        forceDeburnIn = force,
-                    )
-                )
-            }
+            .collect { currentOnSave(it) }
     }
 
     Scaffold(
@@ -173,6 +193,29 @@ private fun TimerScreen(
                 )
             ) {
                 SwitchPreference(
+                    title = "启用时段",
+                    summary = "只在设定的时间窗口内保持 AOD，其余时间交还系统",
+                    checked = scheduleEnabled,
+                    onCheckedChange = { scheduleEnabled = it },
+                )
+                ArrowPreference(
+                    title = "开始时间",
+                    summary = formatTime(scheduleStart),
+                    onClick = { pickTime(scheduleStart) { scheduleStart = it } },
+                )
+                ArrowPreference(
+                    title = "结束时间",
+                    summary = formatTime(scheduleEnd),
+                    onClick = { pickTime(scheduleEnd) { scheduleEnd = it } },
+                )
+            }
+
+            Card(
+                colors = CardDefaults.defaultColors(
+                    color = MiuixTheme.colorScheme.background,
+                )
+            ) {
+                SwitchPreference(
                     title = "强制启用防烧屏位移",
                     summary = "让系统在省电常亮时也执行全景位移；可能出现轻微位置跳变",
                     checked = forceDeburn,
@@ -190,3 +233,6 @@ private fun durationLabel(value: Float): String = when {
     value >= MAX_MINUTES -> "常亮"
     else -> "${value.toInt()} 分钟"
 }
+
+private fun formatTime(minuteOfDay: Int): String =
+    "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
