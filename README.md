@@ -1,6 +1,6 @@
 # ColorOS AOD Timer
 
-ColorOS 息屏显示 (AOD) 常亮计时模块（Xposed / LSPosed）。
+ColorOS 息屏显示 (AOD) 常亮计时模块 (LSPosed)。
 
 只做一件事：当系统只允许"节能显示"时，按设定时长保持 AOD 显示。
 
@@ -45,10 +45,10 @@ Release 构建需要在根目录提供 `keystore.properties` (`storeFile` / `sto
 
 ## 使用
 
-1. 安装 APK，在 LSPosed 中启用「ColorOS AOD 计时修改」，作用域勾选系统界面
+1. 前往  [Releases](https://github.com/XiaoTDM/ColorOS-AOD-Timer/releases/latest) 下载并安装 app_release.apk，在 LSPosed 中启用「ColorOS AOD 计时修改」，作用域勾选系统界面 (Xposed 可能不兼容)
 2. 重启系统界面
-3. 打开应用，把滑条拨到需要的时长
-4. 验证日志：
+3. 打开 App，把滑条拨到需要的时长
+4. 使用 app_debug.apk 时可验证日志：
 
 ```bash
 adb logcat -s AOD_Timer:D
@@ -63,7 +63,7 @@ AOD_KEEP: getKeepAodOn -> 1 (minutes=60)
 
 ## 已知限制
 
-- 面板能力码未上报"全天"位时，ROM 本身不提供防烧屏保证；长期常亮请注意烧屏风险
+- 面板能力码未上报"全天"位时，ROM 本身不提供防烧屏保证；长期常亮请注意烧屏风险 (1.0.1 已提供强制开启防烧屏偏移的功能)
 - 与其它改写 `getKeepAodOn()` 的模块同时启用会互相覆盖，请只保留一个
 - 到达设定时长后由 ROM 的下一次节能判定执行隐藏，可能有数秒到数十秒延迟
 - v1.1 起配置通过 `YukiHookPrefsBridge` 直接读取，重启后无需再打开一次 App
