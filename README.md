@@ -1,17 +1,17 @@
 # ColorOS AOD Timer
 
-ColorOS 息屏显示（AOD）常亮计时模块（Xposed / LSPosed）。
+ColorOS 息屏显示 (AOD) 常亮计时模块（Xposed / LSPosed）。
 
 只做一件事：当系统只允许"节能显示"时，按设定时长保持 AOD 显示。
 
 ## 功能
 
 - 一条滑条：`0` = 跟随系统，`1–239` = 熄屏后保持 N 分钟，`240` = 常亮
-- 启用时段：只在设定的时间窗口内生效，支持跨午夜（如 22:00–08:00）
-- 一个开关：强制启用防烧屏位移（系统在省电常亮时默认不做位移）
+- 启用时段：只在设定的时间窗口内生效，支持跨午夜 (如 22:00–08:00)
+- 一个开关：强制启用防烧屏位移 (系统在省电常亮时默认不做位移)
 - 纯内存改写，不写 SecureSetting、不改渲染路径、不动系统设置
 - 滑条归零或停用模块即完全恢复系统行为
-- 与 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance) 可共存（包名、Provider、入口均独立）
+- 与 [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance) 可共存 (包名、Provider、入口均独立)
 
 ## 原理
 
@@ -23,13 +23,13 @@ ColorOS 的 `AODDisplayUtil.getKeepAodOn()` 是 ROM 自带的"保持常亮"调�
 
 模块在该方法返回后，于时间窗口内把结果改写为 `1`，窗口外还原为 `0`。
 
-计时起点取自 `AodData.setAodIsInShow(true)`；亮屏（`PowerManager.isInteractive`）时清零。
+计时起点取自 `AodData.setAodIsInShow(true)`；亮屏 (`PowerManager.isInteractive`) 时清零。
 息屏期间节能策略的反复隐藏/重现不会重置计时，只有重新熄屏才重新计时。
 
 ## 环境
 
-- ColorOS（Oplus）系统
-- LSPosed，作用域：`系统界面（com.android.systemui）`
+- ColorOS (Oplus) 17 (仅在 17.0.1.200 测试通过，先前版本不保证可用性)
+- LSPosed，作用域：`系统界面 (com.android.systemui)`
 - minSdk 33
 
 ## 构建
@@ -40,7 +40,7 @@ ColorOS 的 `AODDisplayUtil.getKeepAodOn()` 是 ROM 自带的"保持常亮"调�
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`。
 
-Release 构建需要在根目录提供 `keystore.properties`（`storeFile` / `storePassword` / `keyAlias` / `keyPassword`），
+Release 构建需要在根目录提供 `keystore.properties` (`storeFile` / `storePassword` / `keyAlias` / `keyPassword`)，
 或在 `app/build.gradle` 中改用你自己的签名配置。
 
 ## 使用
