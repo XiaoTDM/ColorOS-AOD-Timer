@@ -55,6 +55,10 @@ internal object TimerConfigReader {
                 TimerConfigContract.KEY_SCHEDULE_END,
                 TimerConfigContract.DEFAULT_SCHEDULE_END
             ),
+            autoWake = prefs.getBoolean(
+                TimerConfigContract.KEY_AUTO_WAKE,
+                TimerConfigContract.DEFAULT_AUTO_WAKE
+            ),
         )
 
         cached = fresh

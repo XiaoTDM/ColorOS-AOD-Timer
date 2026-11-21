@@ -4,6 +4,8 @@ import android.content.Context
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.op.aod.timer.BuildConfig
 import com.op.aod.timer.hook.BurnInProbe.hookBurnInProbe
+// import com.op.aod.timer.hook.AutoWakeHook.hookAutoWake // 已废弃，见 AutoWakeHook.kt
+
 import com.op.aod.timer.hook.ForceDeBurnInHook.hookForceDeBurnIn
 import com.op.aod.timer.hook.KeepAodHook.hookKeepAodDuration
 
@@ -42,6 +44,8 @@ object MainHook : YukiBaseHooker() {
         loadApp(name = SYSTEM_UI) {
             runCatching { hookKeepAodDuration() }
             runCatching { hookForceDeBurnIn() }
+            // 自动唤醒已废弃：遮挡场景会被误点亮，弊大于利，见 AutoWakeHook.kt
+            // runCatching { hookAutoWake() }
             // 防烧屏探针只在 DEBUG 构建注册，release 不会执行
             if (BuildConfig.DEBUG) {
                 runCatching { hookBurnInProbe() }

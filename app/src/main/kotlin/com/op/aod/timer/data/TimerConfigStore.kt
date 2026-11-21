@@ -37,6 +37,10 @@ object TimerConfigStore {
                 TimerConfigContract.KEY_SCHEDULE_END,
                 TimerConfigContract.DEFAULT_SCHEDULE_END
             ),
+            autoWake = prefs.getBoolean(
+                TimerConfigContract.KEY_AUTO_WAKE,
+                TimerConfigContract.DEFAULT_AUTO_WAKE
+            ),
         )
     }
 
@@ -47,6 +51,7 @@ object TimerConfigStore {
         editor.putBoolean(TimerConfigContract.KEY_SCHEDULE_ENABLED, config.scheduleEnabled)
         editor.putInt(TimerConfigContract.KEY_SCHEDULE_START, config.scheduleStartMinute)
         editor.putInt(TimerConfigContract.KEY_SCHEDULE_END, config.scheduleEndMinute)
+        editor.putBoolean(TimerConfigContract.KEY_AUTO_WAKE, config.autoWake)
         // 同步落盘，避免异常重启丢配置
         editor.commit()
     }

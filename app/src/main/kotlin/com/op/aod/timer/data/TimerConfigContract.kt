@@ -24,13 +24,20 @@ object TimerConfigContract {
     const val KEY_SCHEDULE_ENABLED = "schedule_enabled"
     const val DEFAULT_SCHEDULE_ENABLED = false
 
-    /** 时段起点，从 0 点起的分钟数。默认 22:00。 */
+    /** 时段起点，从 0 点起的分钟数。默认 08:00。 */
     const val KEY_SCHEDULE_START = "schedule_start_minute"
-    const val DEFAULT_SCHEDULE_START = 22 * 60
+    const val DEFAULT_SCHEDULE_START = 8 * 60
 
-    /** 时段终点，从 0 点起的分钟数。默认次日 08:00。 */
+    /** 时段终点，从 0 点起的分钟数。默认 23:00。 */
     const val KEY_SCHEDULE_END = "schedule_end_minute"
-    const val DEFAULT_SCHEDULE_END = 8 * 60
+    const val DEFAULT_SCHEDULE_END = 23 * 60
+
+    /**
+     * 已废弃：自动唤醒功能已移除，保留键名仅为兼容旧配置。
+     * 见 hook/AutoWakeHook.kt 中的说明。
+     */
+    const val KEY_AUTO_WAKE = "auto_wake"
+    const val DEFAULT_AUTO_WAKE = false
 }
 
 /** 模块配置快照。 */
@@ -40,4 +47,5 @@ data class TimerConfig(
     val scheduleEnabled: Boolean = TimerConfigContract.DEFAULT_SCHEDULE_ENABLED,
     val scheduleStartMinute: Int = TimerConfigContract.DEFAULT_SCHEDULE_START,
     val scheduleEndMinute: Int = TimerConfigContract.DEFAULT_SCHEDULE_END,
+    val autoWake: Boolean = TimerConfigContract.DEFAULT_AUTO_WAKE,
 )
