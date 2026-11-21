@@ -39,14 +39,23 @@ ColorOS 的 `AODDisplayUtil.getKeepAodOn()` 是 ROM 自带的"保持常亮"调�
 
 ## 构建
 
+- 带日志调试包
+
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`。
 
-Release 构建需要在根目录提供 `keystore.properties` (`storeFile` / `storePassword` / `keyAlias` / `keyPassword`)，
-或在 `app/build.gradle` 中改用你自己的签名配置。
+- 正式发布包
+
+```bash
+./gradlew :app:assembleRelease
+```
+
+需要在根目录提供 `keystore.properties` (`storeFile` / `storePassword` / `keyAlias` / `keyPassword`)，或在 `app/build.gradle` 中改用你自己的签名配置。
+
+产物：`app/build/outputs/apk/release/app-release.apk`。
 
 ## 使用
 
