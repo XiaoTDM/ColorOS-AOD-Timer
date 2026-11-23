@@ -20,6 +20,19 @@
   但该入口没有遮挡判断，补传感器镜像后仍依赖 ROM 内部类结构，
   且需要常驻轮询线程。代码保留在 `hook/AutoWakeHook.kt`（整体注释）。
 
+## 已迁移
+
+- [x] 配置存储脱离 XSharedPreferences
+  改为「设备加密目录 JSON 文件 + 只读 ContentProvider」，
+  Provider 仅允许 system uid / `com.android.systemui` 读取。
+  已移除 `xposedsharedprefs`，LSPosed 的弃用警告随之消失。
+  注意：旧配置不会自动迁移，升级后需重新设置一次。
+
+## 1.2（进行中）
+
+- [x] 多语言模板化：`i18n/AppStrings.kt` + 简体中文 / English，跟随系统语言
+- [ ] 发布前：README 中英文说明、Release Note、打 Tag `v1.2`
+
 ## 后续（不阻塞发布）
 
 - [ ] Hook 策略链与降级：`getKeepAodOn` → `onEnergySavingNotifyHide` →

@@ -42,6 +42,10 @@ internal object KeepAodHook {
     @Volatile
     private var showStartMs = 0L
 
+    /** 诊断日志节流（release 也会打印）。 */
+    @Volatile
+    private var lastLogNs = 0L
+
     fun YukiBaseHooker.hookKeepAodDuration() {
         // 记录 / 重置计时起点
         runCatching {
@@ -87,7 +91,13 @@ internal object KeepAodHook {
 
                         val keep = shouldKeep(minutes)
                         result = if (keep) 1 else 0
-                        debugLog("getKeepAodOn -> ${if (keep) 1 else 0} (minutes=$minutes)")
+
+                        // 每分钟最多一条，release 也可见，便于排查"配置没生效"
+                        val nowNs = System.nanoTime()
+                        if (nowNs - lastLogNs > 60_000_000_000L) {
+                            lastLogNs = nowNs
+                            Log.i(TAG, "AOD_KEEP: minutes=$minutes, keep=$keep")
+                        }
                     }
                 }
         }.onFailure {

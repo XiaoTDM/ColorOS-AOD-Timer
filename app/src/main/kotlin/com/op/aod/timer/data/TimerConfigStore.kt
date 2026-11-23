@@ -1,58 +1,24 @@
 package com.op.aod.timer.data
 
 import android.content.Context
-import com.highcapable.yukihookapi.hook.factory.prefs
+import android.net.Uri
 
 /**
- * UI 侧配置读写，基于 YukiHookPrefsBridge。
+ * UI 侧配置读写：直接操作文件。
  *
- * 在模块 App 内它等价于普通 SharedPreferences；写入后会被 LSPosed 重定向到
- * 框架的 prefs 目录，宿主进程可以直接读取，因此**不需要模块 App 先启动一次**。
+ * 模块 App 与 Provider 运行在同一进程，UI 写入后 Provider 立即可读，
+ * 不需要再经过 SharedPreferences / XSharedPreferences。
  */
 object TimerConfigStore {
 
-    /** 读取配置；prefs 不可用时返回 null，由调用方重试。 */
-    fun read(context: Context): TimerConfig? {
-        val prefs = context.prefs(TimerConfigContract.PREFS_NAME)
-        if (!prefs.isPreferencesAvailable) return null
+    private val uri: Uri = Uri.parse(TimerConfigContract.URI_STRING)
 
-        return TimerConfig(
-            keepAodMinutes = prefs.getInt(
-                TimerConfigContract.KEY_KEEP_AOD_MINUTES,
-                TimerConfigContract.DEFAULT_KEEP_AOD_MINUTES
-            ),
-            forceDeburnIn = prefs.getBoolean(
-                TimerConfigContract.KEY_FORCE_DEBURN_IN,
-                TimerConfigContract.DEFAULT_FORCE_DEBURN_IN
-            ),
-            scheduleEnabled = prefs.getBoolean(
-                TimerConfigContract.KEY_SCHEDULE_ENABLED,
-                TimerConfigContract.DEFAULT_SCHEDULE_ENABLED
-            ),
-            scheduleStartMinute = prefs.getInt(
-                TimerConfigContract.KEY_SCHEDULE_START,
-                TimerConfigContract.DEFAULT_SCHEDULE_START
-            ),
-            scheduleEndMinute = prefs.getInt(
-                TimerConfigContract.KEY_SCHEDULE_END,
-                TimerConfigContract.DEFAULT_SCHEDULE_END
-            ),
-            autoWake = prefs.getBoolean(
-                TimerConfigContract.KEY_AUTO_WAKE,
-                TimerConfigContract.DEFAULT_AUTO_WAKE
-            ),
-        )
-    }
+    fun read(context: Context): TimerConfig = TimerConfigFile.read(context) ?: TimerConfig()
 
     fun write(context: Context, config: TimerConfig) {
-        val editor = context.prefs(TimerConfigContract.PREFS_NAME).edit()
-        editor.putInt(TimerConfigContract.KEY_KEEP_AOD_MINUTES, config.keepAodMinutes)
-        editor.putBoolean(TimerConfigContract.KEY_FORCE_DEBURN_IN, config.forceDeburnIn)
-        editor.putBoolean(TimerConfigContract.KEY_SCHEDULE_ENABLED, config.scheduleEnabled)
-        editor.putInt(TimerConfigContract.KEY_SCHEDULE_START, config.scheduleStartMinute)
-        editor.putInt(TimerConfigContract.KEY_SCHEDULE_END, config.scheduleEndMinute)
-        editor.putBoolean(TimerConfigContract.KEY_AUTO_WAKE, config.autoWake)
-        // 同步落盘，避免异常重启丢配置
-        editor.commit()
+        TimerConfigFile.write(context, config)
     }
+
+    /** 调试用：当前配置文件路径。 */
+    fun configPath(context: Context): String = uri.toString()
 }

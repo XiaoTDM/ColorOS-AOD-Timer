@@ -1,34 +1,67 @@
 # ColorOS AOD Timer
 
-ColorOS Always-On Display (AOD) Force Light Timer Module (Xposed / LSPosed).
+ColorOS Always-On Display (AOD) timer module (Xposed / LSPosed).
 
-Just one thing: When the system only allows 'Energy-saving display,' keep the AOD on for the set duration.
+On devices limited to "energy-saving display", it keeps the AOD on for a
+configurable duration, optionally only within a schedule window.
+The UI follows the system language.
 
-## Functions
+## Features
 
-- A slider: `0` = follow the system, `1–239` = keep the screen on for N minutes after turning off, `240` = always on
-- A switch: force-enable burn-in prevention offset (the system doesn’t make offsets by default when in AOD Energy-saving Mode)
-- Purely memory-based rewrite, does not touch SecureSettings, rendering paths, or system settings
-- Resetting the slider to zero or disabling the module fully restores system behavior
-- Can coexist with [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance) (package name, provider, and entry are all independent)
+- One slider: `0` = follow the system, `1–239` = keep AOD for N minutes after screen-off, `240` = always on
+- Schedule: keep AOD only within a time window, overnight windows supported (default `08:00–23:00`)
+- One switch: force-enable the burn-in shift (the ROM skips it in energy-saving mode)
+- Pure in-memory override: no SecureSetting writes, no rendering changes, no system settings touched
+- Setting the slider to 0, disabling the schedule, or disabling the module restores stock behaviour
+- Also works for partial AOD; partial AOD already shifts its position on its own
+- Localization: Simplified Chinese / English, following the system language
+- Coexists with [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance) (separate package, config and entry point)
 
-## 原理
 ## Principle
 
-ColorOS's `AODDisplayUtil.getKeepAodOn()` is the ROM's built-in 'keep always-on' debug switch and is used as a short-circuit condition in multiple Energy-saving logics:
+ColorOS's `AODDisplayUtil.getKeepAodOn()` is the ROM's built-in "keep always-on"
+debug switch, used as a short-circuit condition in several energy-saving paths:
 
 - `AodUpdateManager.isDisplayModeAllowUpdateClock()`
 - `BaseAodClockLayoutController.onEnergySavingNotifyHide()`
 - `BaseAodController.isUpsideDownEnable()`
 
-After the module returns from this method, it rewrites the result to `1` within a time window, and restores it to `0` outside the window.
+After the method returns, the module rewrites the result to `1` inside the
+schedule window and back to `0` outside it.
 
-The timing starts from `AodData.setAodIsInShow(true)`; it resets when the screen is on (`PowerManager.isInteractive`). Repeated hiding/appearing during screen-off energy-saving does not reset the timer — only turning off the screen again restarts it.
+The window is compared as "minute of day"; crossing midnight is just one extra
+`||`. Nothing is rewritten outside the window.
+
+Timing starts at `AodData.setAodIsInShow(true)` and resets when the screen is
+interactive. Repeated hiding during screen-off does not reset the timer.
+
+## Configuration storage (since v1.2)
+
+Older versions used LSPosed's **New XSharedPreferences**, which is scheduled for
+removal in **LSPosed 2.3.0** and is unavailable while the module app process is
+dead. Since v1.2:
+
+| Role | Location |
+|---|---|
+| Written by the module app | `/data/user_de/0/com.op.aod.timer/files/timer_config.json` |
+| Read by SystemUI | `content://com.op.aod.timer.config/timer_config` (read-only provider) |
+| Cached by SystemUI | `/data/user_de/0/com.android.systemui/files/aod_timer_config_cache.json` |
+
+Notes:
+
+- Config lives in **device-encrypted** storage, readable before the first unlock;
+- The provider is read-only and restricted to SystemUI's uid/package;
+- SystemUI refreshes its own cache after every successful read, so the module
+  keeps working when the app process is frozen or killed;
+- Writes use a temp-file + rename to avoid truncated JSON.
+
+> **Upgrade note**: the old configuration is not migrated. After upgrading to
+> v1.2, set the value once again.
 
 ## Environment
 
 - ColorOS (Oplus) ROM
-- LSPosed, Scope: `System UI（com.android.systemui）`
+- LSPosed, scope: `System UI (com.android.systemui)`
 - minSdk 33
 
 ## Build
@@ -37,41 +70,71 @@ The timing starts from `AodData.setAodIsInShow(true)`; it resets when the screen
 ./gradlew :app:assembleDebug
 ```
 
-Output: `app/build/outputs/apk/debug/app-debug.apk`。
+Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
-For a Release build, you need to provide `keystore.properties` (`storeFile` / `storePassword` / `keyAlias` / `keyPassword`) in the root directory, or use your own signing configuration in `app/build.gradle`.
+For a release build, provide `keystore.properties` in the repository root
+(`storeFile` / `storePassword` / `keyAlias` / `keyPassword`), or configure your
+own signing in `app/build.gradle`.
 
 ## Usage
 
-1. Install the APK, enable "ColorOS AOD 计时修改" in LSPosed, and check "System UI" as scope.
+1. Install the APK, enable "ColorOS AOD Timer" in LSPosed, scope: System UI.
 2. Restart System UI.
 3. Open the app and move the slider to the desired duration.
 4. Check the logs:
 
 ```bash
-adb logcat -s AOD_Timer:D
+adb logcat -s AOD_Timer:V
 ```
 
 Expected:
 
 ```
-AOD_KEEP: session start
-AOD_KEEP: getKeepAodOn -> 1 (minutes=60)
+AOD_Timer: config loaded: keep=60, schedule=false 480-1380, forceShift=false
+AOD_Timer: AOD_KEEP: minutes=60, keep=true
 ```
 
-## Known Limitations
+With the module app not running:
 
-- If the panel capability code hasn't reported the "all-day" flag, the ROM itself doesn't guarantee burn-in prevention; keep in mind the risk of screen burn if always-on for a long time.
-- Enabling this alongside other modules that override `getKeepAodOn()` will cause conflicts, so only keep one.
-- Once the set duration is reached, hiding is controlled by the ROM's next Energy-saving check, which may have a delay of a few to several seconds.
-- Configurations are managed by the LSPosed framework, and may be lost after a reboot.
+```
+AOD_Timer: config from disk cache: keep=60
+```
+
+## Localization
+
+All UI strings are template-based and follow the system language (falling back
+to Simplified Chinese).
+
+Adding a language takes three steps:
+
+1. Copy `i18n/EnStrings.kt` to `i18n/XxxStrings.kt` and implement `AppStrings`;
+2. Register it in the `Languages.all` list;
+3. (Optional) add `res/values-xx/strings.xml` with `app_name` and `xposed_description`.
+
+No layout code needs to change — everything is read via `LocalStrings.current`.
+
+## Known limitations
+
+- If the panel capability code doesn't report the "all-day" flag, the ROM offers
+  no burn-in guarantee; long always-on sessions carry burn-in risk
+- Enabling it together with another module that overrides `getKeepAodOn()` makes
+  them fight each other; keep only one
+- After the configured duration, hiding happens on the ROM's next energy-saving
+  check and may take seconds
+- The schedule window does not light the AOD up: if the AOD was already hidden
+  when the window starts, one manual tap is required
+- After installation the app must be opened once and a value saved, so SystemUI
+  has a cache to fall back on
+- Auto-wake is intentionally not implemented: the wake entry has no occlusion
+  check and would light the screen up while covered
 
 ## Disclaimer
 
-- Project inspired by [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance)
-- AI used
+- Inspired by [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance)
+- AI-assisted
 
 ## License
 
-MIT. The configuration channels and hook structure are based on Qjj7679's [ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance),
-with the original project's copyright notice retained in [LICENSE](LICENSE).
+MIT. The configuration channel and hook structure are based on Qjj7679's
+[ColorOS AOD Enhance](https://github.com/Qjj7679/ColorOS_Aod_Enhance); the
+original copyright notice is retained in [LICENSE](LICENSE).

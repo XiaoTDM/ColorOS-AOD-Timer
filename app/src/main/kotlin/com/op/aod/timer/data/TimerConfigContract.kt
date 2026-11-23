@@ -9,8 +9,10 @@ package com.op.aod.timer.data
  */
 object TimerConfigContract {
 
-    /** prefs 文件名。保持与旧版 Provider 一致，升级后旧值可直接沿用。 */
-    const val PREFS_NAME = "timer_config"
+    /** Provider authority 与路径。 */
+    const val AUTHORITY = "com.op.aod.timer.config"
+    const val PATH = "timer_config"
+    const val URI_STRING = "content://$AUTHORITY/$PATH"
 
     /** 保持 AOD 显示的时长（分钟）：`0` = 跟随系统，`-1` = 常亮。 */
     const val KEY_KEEP_AOD_MINUTES = "keep_aod_minutes"
