@@ -8,6 +8,7 @@ import com.highcapable.kavaref.KavaRef.Companion.resolve
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.highcapable.yukihookapi.hook.factory.toClass
 import com.op.aod.timer.BuildConfig
+import com.op.aod.timer.util.Logs
 
 /**
  * 节能模式下按配置时长保持 AOD 显示。
@@ -42,9 +43,9 @@ internal object KeepAodHook {
     @Volatile
     private var showStartMs = 0L
 
-    /** 诊断日志节流（release 也会打印）。 */
+    /** 上一次输出的 keep 结果，用于只在状态变化时打日志。 */
     @Volatile
-    private var lastLogNs = 0L
+    private var lastKeep: Boolean? = null
 
     fun YukiBaseHooker.hookKeepAodDuration() {
         // 记录 / 重置计时起点
@@ -72,7 +73,7 @@ internal object KeepAodHook {
                     }
                 }
         }.onFailure {
-            debugLog("setAodIsInShow hook failed, ${it.message}")
+            Logs.w("AOD_KEEP: setAodIsInShow hook failed, ${it.message}")
         }
 
         // 时间窗口内伪装成 "keep aod on"
@@ -92,16 +93,15 @@ internal object KeepAodHook {
                         val keep = shouldKeep(minutes)
                         result = if (keep) 1 else 0
 
-                        // 每分钟最多一条，release 也可见，便于排查"配置没生效"
-                        val nowNs = System.nanoTime()
-                        if (nowNs - lastLogNs > 60_000_000_000L) {
-                            lastLogNs = nowNs
-                            Log.i(TAG, "AOD_KEEP: minutes=$minutes, keep=$keep")
+                        // 只在结果变化时输出，避免 release 每分钟刷一条
+                        if (lastKeep != keep) {
+                            lastKeep = keep
+                            Logs.i("AOD_KEEP: minutes=$minutes, keep=$keep")
                         }
                     }
                 }
         }.onFailure {
-            debugLog("getKeepAodOn hook failed, ${it.message}")
+            Logs.w("AOD_KEEP: getKeepAodOn hook failed, ${it.message}")
         }
     }
 

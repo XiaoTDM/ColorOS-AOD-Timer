@@ -25,6 +25,17 @@ object ZhCnStrings : AppStrings {
     override val forceShiftTitle = "强制启用防烧屏位移"
     override val forceShiftSummary = "让系统在省电常亮时也执行全景位移；可能出现轻微位置跳变"
 
+    override val autoWakeTitle = "时段开始时自动唤醒"
+    override val autoWakeSummary = "到点尝试点亮 AOD；被遮挡时按下方时长重试（实验性）"
+    override val retryPrefix = "遮挡后重试："
+    override val retryOff = "不重试"
+    override fun retryMinutes(n: Int) = "$n 分钟"
+    override val retryIntervalPrefix = "重试间隔："
+    override fun interval(seconds: Int) =
+        if (seconds < 60) "$seconds 秒" else "${seconds / 60} 分钟"
+    override val fallbackTitle = "镜像失效时自采样接近传感器"
+    override val fallbackSummary = "默认关闭；开启后镜像不可用时会主动采样，可能增加误触发概率"
+
     override val aboutEntrySummary = "版本、原理与致谢"
 
     override val pickerTitle = "选择时间"

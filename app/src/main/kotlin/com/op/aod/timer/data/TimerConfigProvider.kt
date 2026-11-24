@@ -35,6 +35,9 @@ class TimerConfigProvider : ContentProvider() {
             "schedule_start_minute",
             "schedule_end_minute",
             "auto_wake",
+            "wake_retry_minutes",
+            "wake_retry_interval_seconds",
+            "wake_fallback_proximity",
         )
     }
 
@@ -69,6 +72,9 @@ class TimerConfigProvider : ContentProvider() {
                     config.scheduleStartMinute,
                     config.scheduleEndMinute,
                     if (config.autoWake) 1 else 0,
+                    config.wakeRetryMinutes,
+                    config.wakeRetryIntervalSeconds,
+                    if (config.wakeFallbackProximity) 1 else 0,
                 )
             )
         }

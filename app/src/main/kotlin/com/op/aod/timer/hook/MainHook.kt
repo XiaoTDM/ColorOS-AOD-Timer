@@ -1,10 +1,11 @@
 package com.op.aod.timer.hook
 
 import android.content.Context
+import android.util.Log
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.op.aod.timer.BuildConfig
+import com.op.aod.timer.hook.AutoWakeHook.hookAutoWake
 import com.op.aod.timer.hook.BurnInProbe.hookBurnInProbe
-// import com.op.aod.timer.hook.AutoWakeHook.hookAutoWake // 已废弃，见 AutoWakeHook.kt
 
 import com.op.aod.timer.hook.ForceDeBurnInHook.hookForceDeBurnIn
 import com.op.aod.timer.hook.KeepAodHook.hookKeepAodDuration
@@ -41,11 +42,13 @@ object MainHook : YukiBaseHooker() {
     }
 
     override fun onHook() {
+        Log.i("AOD_Timer", "AOD_HOOK: loaded in process=${currentProcessName()}")
+
         loadApp(name = SYSTEM_UI) {
             runCatching { hookKeepAodDuration() }
             runCatching { hookForceDeBurnIn() }
-            // 自动唤醒已废弃：遮挡场景会被误点亮，弊大于利，见 AutoWakeHook.kt
-            // runCatching { hookAutoWake() }
+            // 自动唤醒：实验性，带遮挡/通话/ROM 状态门禁
+            runCatching { hookAutoWake() }
             // 防烧屏探针只在 DEBUG 构建注册，release 不会执行
             if (BuildConfig.DEBUG) {
                 runCatching { hookBurnInProbe() }
@@ -54,4 +57,8 @@ object MainHook : YukiBaseHooker() {
     }
 
     private const val SYSTEM_UI = "com.android.systemui"
+
+    private fun currentProcessName(): String = runCatching {
+        android.app.Application.getProcessName()
+    }.getOrNull() ?: "unknown"
 }

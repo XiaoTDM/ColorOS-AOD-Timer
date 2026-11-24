@@ -137,6 +137,14 @@ private fun SettingsScreen(
     var scheduleEnabled by remember { mutableStateOf(initial.scheduleEnabled) }
     var scheduleStart by remember { mutableIntStateOf(initial.scheduleStartMinute) }
     var scheduleEnd by remember { mutableIntStateOf(initial.scheduleEndMinute) }
+    var autoWake by remember { mutableStateOf(initial.autoWake) }
+    var retryMinutes by remember {
+        mutableFloatStateOf(initial.wakeRetryMinutes.toFloat().coerceIn(0f, 240f))
+    }
+    var retryInterval by remember {
+        mutableFloatStateOf(initial.wakeRetryIntervalSeconds.toFloat().coerceIn(30f, 300f))
+    }
+    var fallbackProximity by remember { mutableStateOf(initial.wakeFallbackProximity) }
     var editingStart by remember { mutableStateOf(false) }
     var editingEnd by remember { mutableStateOf(false) }
 
@@ -150,6 +158,10 @@ private fun SettingsScreen(
                 scheduleEnabled = scheduleEnabled,
                 scheduleStartMinute = scheduleStart,
                 scheduleEndMinute = scheduleEnd,
+                autoWake = autoWake,
+                wakeRetryMinutes = retryMinutes.toInt(),
+                wakeRetryIntervalSeconds = retryInterval.toInt(),
+                wakeFallbackProximity = fallbackProximity,
             )
         }
             .drop(1)
@@ -211,6 +223,53 @@ private fun SettingsScreen(
                 summary = endTimeLabel(scheduleStart, scheduleEnd, strings),
                 onClick = { editingEnd = true },
             )
+            SwitchPreference(
+                title = strings.autoWakeTitle,
+                summary = strings.autoWakeSummary,
+                checked = autoWake,
+                onCheckedChange = { autoWake = it },
+            )
+            if (autoWake) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = strings.retryPrefix + retryLabel(retryMinutes, strings),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                    Slider(
+                        value = retryMinutes,
+                        onValueChange = { retryMinutes = it.coerceIn(0f, 240f) },
+                        valueRange = 0f..240f,
+                        steps = 23,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = strings.retryIntervalPrefix +
+                            strings.interval(retryInterval.toInt()),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                    Slider(
+                        value = retryInterval,
+                        onValueChange = { retryInterval = it.coerceIn(30f, 300f) },
+                        valueRange = 30f..300f,
+                        steps = 8,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                SwitchPreference(
+                    title = strings.fallbackTitle,
+                    summary = strings.fallbackSummary,
+                    checked = fallbackProximity,
+                    onCheckedChange = { fallbackProximity = it },
+                )
+            }
         }
 
         Card(
@@ -334,6 +393,9 @@ private fun durationLabel(value: Float, strings: AppStrings): String = when {
     value >= MAX_MINUTES -> strings.alwaysOn
     else -> strings.minutes(value.toInt())
 }
+
+private fun retryLabel(minutes: Float, strings: AppStrings): String =
+    if (minutes < 1f) strings.retryOff else strings.retryMinutes(minutes.toInt())
 
 private fun formatTime(minuteOfDay: Int): String =
     "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)

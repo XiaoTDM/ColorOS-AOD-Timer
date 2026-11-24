@@ -49,6 +49,18 @@ internal object TimerConfigFile {
                 TimerConfigContract.DEFAULT_SCHEDULE_END
             ),
             autoWake = json.optBoolean("autoWake", TimerConfigContract.DEFAULT_AUTO_WAKE),
+            wakeRetryMinutes = json.optInt(
+                "wakeRetryMinutes",
+                TimerConfigContract.DEFAULT_WAKE_RETRY_MINUTES
+            ),
+            wakeRetryIntervalSeconds = json.optInt(
+                "wakeRetryIntervalSeconds",
+                TimerConfigContract.DEFAULT_WAKE_RETRY_INTERVAL_SECONDS
+            ),
+            wakeFallbackProximity = json.optBoolean(
+                "wakeFallbackProximity",
+                TimerConfigContract.DEFAULT_WAKE_FALLBACK_PROXIMITY
+            ),
         )
     }.getOrElse {
         Log.w(TAG, "config read failed: ${it.message}")
@@ -64,6 +76,9 @@ internal object TimerConfigFile {
                 .put("scheduleStartMinute", config.scheduleStartMinute)
                 .put("scheduleEndMinute", config.scheduleEndMinute)
                 .put("autoWake", config.autoWake)
+                .put("wakeRetryMinutes", config.wakeRetryMinutes)
+                .put("wakeRetryIntervalSeconds", config.wakeRetryIntervalSeconds)
+                .put("wakeFallbackProximity", config.wakeFallbackProximity)
 
             val target = file(context)
             target.parentFile?.mkdirs()
@@ -75,7 +90,7 @@ internal object TimerConfigFile {
                 target.writeText(json.toString())
                 temp.delete()
             }
-            Log.i(TAG, "config written: ${target.absolutePath}")
+            com.op.aod.timer.util.Logs.d("config written: ${target.absolutePath}")
         }.onFailure {
             Log.w(TAG, "config write failed: ${it.message}")
         }

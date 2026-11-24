@@ -6,11 +6,17 @@ On devices limited to "energy-saving display", it keeps the AOD on for a
 configurable duration, optionally only within a schedule window.
 The UI follows the system language.
 
+> **Current version: 1.2.1-Beta.** Auto-wake is experimental and needs overnight
+> testing. If something goes wrong, attach `adb logcat -s AOD_Timer:V`.
+
 ## Features
 
 - One slider: `0` = follow the system, `1–239` = keep AOD for N minutes after screen-off, `240` = always on
 - Schedule: keep AOD only within a time window, overnight windows supported (default `08:00–23:00`)
 - One switch: force-enable the burn-in shift (the ROM skips it in energy-saving mode)
+- Auto-wake at window start (experimental, off by default): try to light up the AOD when
+  the window starts; while covered it retries within the configured total window
+  (0–240 min) at the configured interval (30–300 s), and immediately on proximity changes
 - Pure in-memory override: no SecureSetting writes, no rendering changes, no system settings touched
 - Setting the slider to 0, disabling the schedule, or disabling the module restores stock behaviour
 - Also works for partial AOD; partial AOD already shifts its position on its own
@@ -100,6 +106,14 @@ With the module app not running:
 AOD_Timer: config from disk cache: keep=60
 ```
 
+With auto-wake enabled, at the window start:
+
+```
+AOD_Timer: AUTO_WAKE: entered window
+AOD_Timer: AUTO_WAKE: skip: proximity covered, will retry
+AOD_Timer: AUTO_WAKE: calling notifyWakeUpCallback(0)
+```
+
 ## Localization
 
 All UI strings are template-based and follow the system language (falling back
@@ -121,12 +135,17 @@ No layout code needs to change — everything is read via `LocalStrings.current`
   them fight each other; keep only one
 - After the configured duration, hiding happens on the ROM's next energy-saving
   check and may take seconds
-- The schedule window does not light the AOD up: if the AOD was already hidden
-  when the window starts, one manual tap is required
+- The schedule window does not light the AOD up (unless auto-wake is enabled); if the
+  AOD was already hidden when the window starts, one manual tap is required
 - After installation the app must be opened once and a value saved, so SystemUI
   has a cache to fall back on
-- Auto-wake is intentionally not implemented: the wake entry has no occlusion
-  check and would light the screen up while covered
+- Auto-wake is experimental: the occlusion check mirrors the ROM's gesture sensor
+  callback and falls back to sampling if the ROM changes; lighting the AOD up still
+  costs battery and may disturb at night, so it is off by default
+- Auto-wake retries for at most 240 minutes at intervals up to 300 s; outside the
+  schedule window the configuration is re-checked only once per minute
+- "Sample proximity sensor if mirror fails" is disabled by default; enabling it may
+  increase false wakes
 
 ## Disclaimer
 

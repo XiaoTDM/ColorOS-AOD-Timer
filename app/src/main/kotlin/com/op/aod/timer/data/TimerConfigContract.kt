@@ -3,9 +3,8 @@ package com.op.aod.timer.data
 /**
  * 模块配置的键与默认值。
  *
- * 读写统一走 YukiHookAPI 的 `YukiHookPrefsBridge`：
- * 模块 App 内等价于普通 SharedPreferences，被 Hook 的 SystemUI 进程内
- * 等价于 XSharedPreferences，因此不依赖模块 App 是否启动过。
+ * 存储：模块 App 写 JSON 文件（设备加密目录），SystemUI 通过只读
+ * ContentProvider 读取，并由 SystemUI 自缓存兜底。
  */
 object TimerConfigContract {
 
@@ -34,12 +33,29 @@ object TimerConfigContract {
     const val KEY_SCHEDULE_END = "schedule_end_minute"
     const val DEFAULT_SCHEDULE_END = 23 * 60
 
-    /**
-     * 已废弃：自动唤醒功能已移除，保留键名仅为兼容旧配置。
-     * 见 hook/AutoWakeHook.kt 中的说明。
-     */
+    /** 时段开始时尝试主动唤醒 AOD（实验性）。 */
     const val KEY_AUTO_WAKE = "auto_wake"
     const val DEFAULT_AUTO_WAKE = false
+
+    /** 唤醒被遮挡跳过后的重试时长（分钟）：0 = 不重试，最大 240。 */
+    const val KEY_WAKE_RETRY_MINUTES = "wake_retry_minutes"
+    const val DEFAULT_WAKE_RETRY_MINUTES = 30
+    const val MAX_WAKE_RETRY_MINUTES = 240
+
+    /** 遮挡期间的重试间隔（秒）。 */
+    const val KEY_WAKE_RETRY_INTERVAL_SECONDS = "wake_retry_interval_seconds"
+    const val DEFAULT_WAKE_RETRY_INTERVAL_SECONDS = 60
+    const val MIN_WAKE_RETRY_INTERVAL_SECONDS = 30
+    const val MAX_WAKE_RETRY_INTERVAL_SECONDS = 300
+
+    /**
+     * 镜像失效时是否允许主动采样接近传感器。
+     *
+     * 默认关闭：拿不到镜像数据时按"遮挡"处理，不冒险点亮。
+     * 开启后会在每次判断时注册传感器 500ms，可能增加误触发概率。
+     */
+    const val KEY_WAKE_FALLBACK_PROXIMITY = "wake_fallback_proximity"
+    const val DEFAULT_WAKE_FALLBACK_PROXIMITY = false
 }
 
 /** 模块配置快照。 */
@@ -50,4 +66,9 @@ data class TimerConfig(
     val scheduleStartMinute: Int = TimerConfigContract.DEFAULT_SCHEDULE_START,
     val scheduleEndMinute: Int = TimerConfigContract.DEFAULT_SCHEDULE_END,
     val autoWake: Boolean = TimerConfigContract.DEFAULT_AUTO_WAKE,
+    val wakeRetryMinutes: Int = TimerConfigContract.DEFAULT_WAKE_RETRY_MINUTES,
+    val wakeRetryIntervalSeconds: Int =
+        TimerConfigContract.DEFAULT_WAKE_RETRY_INTERVAL_SECONDS,
+    val wakeFallbackProximity: Boolean =
+        TimerConfigContract.DEFAULT_WAKE_FALLBACK_PROXIMITY,
 )

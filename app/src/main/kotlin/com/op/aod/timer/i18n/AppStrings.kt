@@ -60,6 +60,17 @@ interface AppStrings {
     val forceShiftTitle: String
     val forceShiftSummary: String
 
+    // 自动唤醒（实验性）
+    val autoWakeTitle: String
+    val autoWakeSummary: String
+    val retryPrefix: String
+    val retryOff: String
+    fun retryMinutes(n: Int): String
+    val retryIntervalPrefix: String
+    fun interval(seconds: Int): String
+    val fallbackTitle: String
+    val fallbackSummary: String
+
     // 关于入口
     val aboutEntrySummary: String
 

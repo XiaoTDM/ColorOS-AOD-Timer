@@ -96,6 +96,9 @@ internal object TimerConfigReader {
                     scheduleStartMinute = cursor.getInt(3),
                     scheduleEndMinute = cursor.getInt(4),
                     autoWake = cursor.getInt(5) == 1,
+                    wakeRetryMinutes = cursor.getInt(6),
+                    wakeRetryIntervalSeconds = cursor.getInt(7),
+                    wakeFallbackProximity = cursor.getInt(8) == 1,
                 )
             } else {
                 null
@@ -119,6 +122,9 @@ internal object TimerConfigReader {
                 .put("scheduleStartMinute", config.scheduleStartMinute)
                 .put("scheduleEndMinute", config.scheduleEndMinute)
                 .put("autoWake", config.autoWake)
+                .put("wakeRetryMinutes", config.wakeRetryMinutes)
+                .put("wakeRetryIntervalSeconds", config.wakeRetryIntervalSeconds)
+                .put("wakeFallbackProximity", config.wakeFallbackProximity)
 
             val file = cacheFile(context)
             file.parentFile?.mkdirs()
@@ -155,6 +161,18 @@ internal object TimerConfigReader {
                 TimerConfigContract.DEFAULT_SCHEDULE_END
             ),
             autoWake = json.optBoolean("autoWake", TimerConfigContract.DEFAULT_AUTO_WAKE),
+            wakeRetryMinutes = json.optInt(
+                "wakeRetryMinutes",
+                TimerConfigContract.DEFAULT_WAKE_RETRY_MINUTES
+            ),
+            wakeRetryIntervalSeconds = json.optInt(
+                "wakeRetryIntervalSeconds",
+                TimerConfigContract.DEFAULT_WAKE_RETRY_INTERVAL_SECONDS
+            ),
+            wakeFallbackProximity = json.optBoolean(
+                "wakeFallbackProximity",
+                TimerConfigContract.DEFAULT_WAKE_FALLBACK_PROXIMITY
+            ),
         )
     }.getOrNull()
 }

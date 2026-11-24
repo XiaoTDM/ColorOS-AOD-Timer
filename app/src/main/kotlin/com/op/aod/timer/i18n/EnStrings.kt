@@ -28,6 +28,20 @@ object EnStrings : AppStrings {
     override val forceShiftSummary =
         "Let the system shift the AOD even in energy-saving mode; slight position jumps may occur"
 
+    override val autoWakeTitle = "Auto-wake at window start"
+    override val autoWakeSummary =
+        "Try to light up the AOD when the window starts; retries while covered (experimental)"
+    override val retryPrefix = "Retry while covered: "
+    override val retryOff = "No retry"
+    override fun retryMinutes(n: Int) = "$n min"
+    override val retryIntervalPrefix = "Retry interval: "
+    override fun interval(seconds: Int) =
+        if (seconds < 60) "$seconds s" else "${seconds / 60} min"
+    override val fallbackTitle = "Sample proximity sensor if mirror fails"
+    override val fallbackSummary =
+        "Off by default; enabling it samples the sensor when the mirror is unavailable, " +
+            "which may increase false wakes"
+
     override val aboutEntrySummary = "Version, rationale and credits"
 
     override val pickerTitle = "Select time"

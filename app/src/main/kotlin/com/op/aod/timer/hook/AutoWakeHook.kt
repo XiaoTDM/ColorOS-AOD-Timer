@@ -1,37 +1,26 @@
 package com.op.aod.timer.hook
 
-// ============================================================================
-// 已废弃：时段开始时的自动唤醒（v1.2 移除）
-//
-// 废弃原因
-// --------
-// 1. 唤醒入口 OplusWakeUpController.notifyWakeUpCallback(0) 没有遮挡判断，
-//    被遮挡（口袋/桌面朝下）时也会点亮，需要额外维护接近传感器状态；
-// 2. 该状态只能镜像 ROM 的手势传感器回调，ROM 一改类名/结构就会退化成自采样，
-//    两条路都不够稳；
-// 3. 常驻轮询线程 + 主动点亮带来额外的耗电与烧屏风险，收益不足以抵消。
-//
-// TODO: 若将来重新实现，优先考虑"复用 ROM 定时显示的唤醒链"
-//       （WAKEUP_TIME 广播 → mWakeUpReceiver → DozeService），
-//       但需要同时模拟 isCurrentAodEnableTimeOpen / getBeginHour 等
-//       至少 5 个落点，并处理 CommonUtils.checkInDuration 直接读 SecureSetting 的问题。
-//       同时必须确认 DozeService 启动前已有遮挡判断。
-// ============================================================================
+// 实验性：时段开始时的自动唤醒。
+// notifyWakeUpCallback(0) 自身没有遮挡判断，这里通过镜像 ROM 手势传感器事件补上，
+// 拿不到事件时退回主动采样；ROM 改动类结构时镜像会失效并自动降级。
 
-/*
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import com.highcapable.kavaref.KavaRef.Companion.resolve
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.highcapable.yukihookapi.hook.factory.toClass
+import com.op.aod.timer.data.TimerConfigContract
+import com.op.aod.timer.util.Logs
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
 internal object AutoWakeHook {
@@ -41,7 +30,8 @@ internal object AutoWakeHook {
     private const val WAKE_CONTROLLER = "com.oplus.systemui.aod.display.OplusWakeUpController"
     private const val AOD_DATA = "com.oplus.systemui.aod.aodclock.constant.AodData"
 
-    private const val CHECK_INTERVAL_MS = 15_000L
+    /** OPPO 自定义手势传感器类型。 */
+    private const val OPLUS_GESTURE_SENSOR = 33171066
 
     private const val GESTURE_SENSOR_LISTENER =
         "com.oplus.systemui.keyguard.gesture.OplusBlackScreenGestureControllExImpl\$sensorListener\$1"
@@ -49,11 +39,28 @@ internal object AutoWakeHook {
     @Volatile
     private var mirroredNear: Boolean? = null
 
+    /** 镜像状态的时间戳，用于判断是否过期。 */
+    @Volatile
+    private var mirroredAt = 0L
+
+    private const val MIRROR_MAX_AGE_MS = 60_000L
+
+    /** 接近状态变化触发器：传感器回调 → 工作线程。 */
+    private val triggerLock = ReentrantLock()
+    private val triggerCondition = triggerLock.newCondition()
+
+    @Volatile
+    private var pendingTrigger = false
+
     fun YukiBaseHooker.hookAutoWake() {
         hookProximityMirror()
 
         thread(name = "aod-timer-autowake", isDaemon = true) {
             var wasActive = false
+            var windowStartElapsed = 0L
+            var lastAttemptElapsed = 0L
+            var settledThisWindow = false
+
             while (true) {
                 try {
                     val context = MainHook.hostAppContext
@@ -71,16 +78,84 @@ internal object AutoWakeHook {
                             Schedule.currentMinuteOfDay(),
                         )
 
+                    val now = SystemClock.elapsedRealtime()
+
                     if (inWindow && !wasActive) {
-                        wake(context)
+                        windowStartElapsed = now
+                        lastAttemptElapsed = 0L
+                        settledThisWindow = false
+                        Logs.i("AUTO_WAKE: entered window")
                     }
                     wasActive = inWindow
 
-                    Thread.sleep(CHECK_INTERVAL_MS)
+                    if (!inWindow) {
+                        // 时段外：低频复查配置与时段
+                        awaitProximityChange(60_000L)
+                        continue
+                    }
+
+                    if (settledThisWindow) {
+                        // 本时段已确定不需要再试（已亮/亮屏/ROM 拒绝）
+                        awaitProximityChange(60_000L)
+                        continue
+                    }
+
+                    val retryWindowMs = config.wakeRetryMinutes.coerceAtLeast(0) * 60_000L
+                    val withinRetry =
+                        retryWindowMs > 0L && now - windowStartElapsed <= retryWindowMs
+                    if (!withinRetry) {
+                        // 超过重试总时长：本时段不再尝试，等时段结束
+                        awaitProximityChange(60_000L)
+                        continue
+                    }
+
+                    if (lastAttemptElapsed == 0L) {
+                        // 进入时段后的首次尝试
+                        lastAttemptElapsed = now
+                        settledThisWindow = wake(context)
+                        continue
+                    }
+
+                    // near 状态变化会立刻唤醒本线程；超时则按配置间隔兜底
+                    val intervalSeconds = config.wakeRetryIntervalSeconds.coerceIn(
+                        TimerConfigContract.MIN_WAKE_RETRY_INTERVAL_SECONDS,
+                        TimerConfigContract.MAX_WAKE_RETRY_INTERVAL_SECONDS,
+                    )
+                    val triggered = awaitProximityChange(intervalSeconds * 1_000L)
+                    lastAttemptElapsed = SystemClock.elapsedRealtime()
+                    if (triggered) debugLog("proximity changed, re-check")
+                    settledThisWindow = wake(context)
                 } catch (_: Throwable) {
-                    Thread.sleep(CHECK_INTERVAL_MS)
+                    Thread.sleep(5_000)
                 }
             }
+        }
+    }
+
+    /** 等待接近状态变化或超时，返回 true 表示由变化事件唤醒。 */
+    private fun awaitProximityChange(timeoutMs: Long): Boolean {
+        triggerLock.lock()
+        try {
+            if (pendingTrigger) {
+                pendingTrigger = false
+                return true
+            }
+            triggerCondition.await(timeoutMs, TimeUnit.MILLISECONDS)
+            val fired = pendingTrigger
+            pendingTrigger = false
+            return fired
+        } finally {
+            triggerLock.unlock()
+        }
+    }
+
+    private fun signalProximityChange() {
+        triggerLock.lock()
+        try {
+            pendingTrigger = true
+            triggerCondition.signalAll()
+        } finally {
+            triggerLock.unlock()
         }
     }
 
@@ -97,36 +172,62 @@ internal object AutoWakeHook {
                     after {
                         val event = args(0).any() as? SensorEvent ?: return@after
                         val sensor = event.sensor ?: return@after
-                        if (sensor.type != Sensor.TYPE_PROXIMITY) return@after
+                        // 标准接近传感器，或 OPPO 的手势传感器
+                        if (sensor.type != Sensor.TYPE_PROXIMITY && sensor.type != OPLUS_GESTURE_SENSOR) {
+                            return@after
+                        }
                         val value = event.values.firstOrNull() ?: return@after
-                        mirroredNear = value < sensor.maximumRange
+                        val near = if (sensor.type == Sensor.TYPE_PROXIMITY) {
+                            value < sensor.maximumRange
+                        } else {
+                            value == 0.0f
+                        }
+                        if (mirroredNear != near) {
+                            mirroredNear = near
+                            mirroredAt = SystemClock.elapsedRealtime()
+                            debugLog("proximity mirror: near=$near (type=${sensor.type}, value=$value)")
+                            // near 发生变化：立刻叫醒工作线程重新判断
+                            signalProximityChange()
+                        } else {
+                            mirroredAt = SystemClock.elapsedRealtime()
+                        }
                     }
                 }
+            debugLog("proximity mirror installed")
         }.onFailure {
             debugLog("proximity mirror hook failed: ${it.message}")
+            Logs.w("AUTO_WAKE: proximity mirror hook failed: ${it.message}")
         }
     }
 
-    private fun wake(context: Context) {
+    /**
+     * 尝试唤醒一次。
+     *
+     * @return true 表示本次时段不需要再试（已亮/亮屏/ROM 拒绝）；
+     *         false 表示被遮挡跳过，稍后应重试。
+     */
+    private fun wake(context: Context): Boolean {
         if (isInteractive(context)) {
             debugLog("skip: screen on")
-            return
-        }
-        if (isCovered(context)) {
-            debugLog("skip: proximity covered")
-            return
-        }
-        if (notNeedWakeAod(context)) {
-            debugLog("skip: notNeedWakeAod")
-            return
+            return true
         }
         if (isAodShowing(context)) {
             debugLog("skip: AOD already showing")
-            return
+            return true
+        }
+        val config = TimerConfigReader.read(context)
+        if (isCovered(context, config.wakeFallbackProximity)) {
+            debugLog("skip: proximity covered, will retry")
+            return false
+        }
+        if (notNeedWakeAod(context)) {
+            debugLog("skip: notNeedWakeAod")
+            return true
         }
 
-        debugLog("window start, calling notifyWakeUpCallback(0)")
-        runCatching {
+        debugLog("calling notifyWakeUpCallback(0)")
+        Logs.i("AUTO_WAKE: calling notifyWakeUpCallback(0)")
+        return runCatching {
             val clazz = Class.forName(WAKE_CONTROLLER, false, context.classLoader)
             val companion = clazz.getField("Companion").get(null)
             val instance = companion.javaClass
@@ -137,13 +238,27 @@ internal object AutoWakeHook {
                 .invoke(instance, 0)
         }.onSuccess {
             debugLog("notifyWakeUpCallback(0) invoked")
+            Logs.i("AUTO_WAKE: notifyWakeUpCallback(0) invoked")
         }.onFailure {
             debugLog("notifyWakeUpCallback failed: ${it.message}")
-        }
+            Logs.w("AUTO_WAKE: notifyWakeUpCallback failed: ${it.message}")
+        }.isSuccess
     }
 
-    private fun isCovered(context: Context): Boolean {
-        mirroredNear?.let { return it }
+    private fun isCovered(context: Context, allowFallback: Boolean): Boolean {
+        val mirrored = mirroredNear
+        if (mirrored != null &&
+            SystemClock.elapsedRealtime() - mirroredAt < MIRROR_MAX_AGE_MS
+        ) {
+            return mirrored
+        }
+
+        if (!allowFallback) {
+            // 默认策略：拿不到遮挡状态时不冒险点亮，按"遮挡"处理
+            debugLog("proximity unknown, fallback disabled -> assume covered")
+            return true
+        }
+
         return sampleProximity(context)
     }
 
@@ -193,7 +308,6 @@ internal object AutoWakeHook {
     }.getOrDefault(false)
 
     private fun debugLog(message: String) {
-        Log.i(TAG, "AUTO_WAKE: $message")
+        Logs.d("AUTO_WAKE: $message")
     }
 }
-*/

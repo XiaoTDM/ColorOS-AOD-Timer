@@ -58,9 +58,7 @@ internal object ForceDeBurnInHook {
                     }
                 }
         }.onFailure {
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "AOD_DEBURN: hook failed, ${it.message}")
-            }
+            com.op.aod.timer.util.Logs.w("AOD_DEBURN: hook failed, ${it.message}")
         }
     }
 }
